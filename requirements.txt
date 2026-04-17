@@ -4,7 +4,6 @@ simpy
 matplotlib
 seaborn
 numpy
-plotly.graph_objects
-plotly.subplots
+plotly
 dataclasses
 typing
