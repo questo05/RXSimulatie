@@ -1,0 +1,10 @@
+streamlit
+pandas
+simpy
+matplotlib
+seaborn
+numpy
+plotly.graph_objects
+plotly.subplots
+dataclasses
+typing
