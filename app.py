@@ -73,10 +73,10 @@ with st.sidebar:
     alle_zalen    = ['G5','G15','G3','G4','G2','G1']
     actieve_zalen = st.multiselect("Actieve RX-zalen", alle_zalen, DEFAULT_ZALEN,
                                    help="G5=thorax · G15=full-length · G2/G3/G4=gemengd · G1=backup")
-    n_technici    = st.slider("Radiotechnici", 1, 12, DEFAULT_TECHNICI,
+    n_technici    = st.slider("Radiotechnici", 1, 12, 9,
                               help="Aantal beschikbare technici (1 per onderzoek tegelijk)")
     wk_cap        = st.slider("Wachtkamercapaciteit", 5, 80, DEFAULT_WACHTKAMER,
-                              help="Patiënten die wachtkamer vol treffen vertrekken meteen")
+                              help="Patiënten die toekomen als de wachtkamer vol is vertrekken")
 
     st.markdown("### 📅 Drukte-niveau")
     st.caption("Gebaseerd op dagvolume-percentielen KWS 2021-2025")
@@ -100,9 +100,6 @@ with st.sidebar:
     De overige 85.4% (met consultatie) komen op hun normale patroon.
     </div>
     """, unsafe_allow_html=True)
-
-    slot_pct     = st.slider("% doorverwezen naar tijdsloten", 0, 100, 0, 5)
-    slot_fractie = slot_pct / 100
 
     st.caption("Selecteer tijdsloten (per halfuur)")
 
@@ -133,6 +130,9 @@ with st.sidebar:
         else:    st.session_state.tijdsloten.discard(uur + 0.5)
 
     tijdsloten = sorted(st.session_state.tijdsloten)
+
+    slot_pct     = st.slider("% doorverwezen naar tijdsloten", 0, 100, 0, 5)
+    slot_fractie = slot_pct / 100
 
     st.divider()
     scenario_naam = st.text_input("Scenarionaam", "Baseline")
