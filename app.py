@@ -92,10 +92,10 @@ with st.sidebar:
     st.divider()
 
     # ── Tijdsloten ────────────────────────────────────────────────────────────
-    st.markdown("### 🎯 Tijdsloten ambulant (zonder afspraak)")
+    st.markdown("### 🎯 Tijdsloten ambulant (zonder consultatie)")
     st.markdown("""
     <div style='font-size:.72rem;color:#6b7280;line-height:1.6;margin-bottom:.6rem'>
-    Enkel de <b>14.6% ambulante patiënten zonder andere afspraak</b>
+    Enkel de <b>14.6% ambulante patiënten zonder andere consultatie</b>
     (gem. ~15/dag) kunnen worden doorverwezen naar tijdsloten.
     De overige 85.4% (met consultatie) komen op hun normale patroon.
     </div>
@@ -240,17 +240,15 @@ st.markdown('<div class="hdr">Kernresultaten</div>', unsafe_allow_html=True)
 cols = st.columns(6)
 
 w = m['gem_wacht']
-sig = ('ok','✓ OK') if w<20 else ('warn','⚠ Verhoogd') if w<40 else ('bad','✗ Hoog')
 with cols[0]: st.markdown(kpi('Geholpen', m['afgehandeld']), unsafe_allow_html=True)
 with cols[1]: st.markdown(kpi('Vertrokken', m['gebalkt'],
                               sig=('bad',f'↑ {m["balk_rate"]:.1f}%') if m['gebalkt']>0 else None),
                           unsafe_allow_html=True)
-with cols[2]: st.markdown(kpi('Gem. wachttijd', f"{w:.1f}", 'min', sig), unsafe_allow_html=True)
+with cols[2]: st.markdown(kpi('Gem. wachttijd', f"{w:.1f}", 'min'), unsafe_allow_html=True)
 with cols[3]: st.markdown(kpi('Mediaan wacht',  f"{m['mediaan_wacht']:.1f}", 'min'), unsafe_allow_html=True)
 with cols[4]: st.markdown(kpi('P90 wacht',       f"{m['p90_wacht']:.1f}",    'min'), unsafe_allow_html=True)
 cv = m['werkdruk_cv']
-sig_cv = ('ok','✓ Vlak') if cv<40 else ('warn','⚠ Piekerig') if cv<60 else ('bad','✗ Hoge piek')
-with cols[5]: st.markdown(kpi('Werkdruk CV', f"{cv:.1f}", '%', sig_cv), unsafe_allow_html=True)
+with cols[5]: st.markdown(kpi('Werkdruk CV', f"{cv:.1f}", '%'), unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS
@@ -288,7 +286,7 @@ with tab1:
                       annotation_font_color='#f87171', annotation_position='top right')
         fig.update_layout(
             title='Verdeling wachttijden per patiënttype',
-            barmode='overlay',
+            barmode='stack',
             xaxis=dict(title='Wachttijd (minuten)', **G),
             yaxis=dict(title='Aantal patiënten', **G),
             height=320, legend=dict(orientation='h', y=-.28), **T,
@@ -430,7 +428,7 @@ with tab3:
     st.markdown(f"""
     <div class="info-box">
     <b>Tijdsloten-logica (aanname A7)</b><br>
-    Van de <b>~15 ambulante patiënten/dag zonder andere afspraak</b> wordt
+    Van de <b>~15 ambulante patiënten/dag zonder andere consultatie</b> wordt
     <b>{slot_pct_huidig}%</b> doorverwezen naar de gekozen tijdsloten
     ({len(actieve_slots)} halfuur-slots actief).
     De andere 85.4% ambulante patiënten (met consultatie) en alle H/D-patiënten
@@ -470,20 +468,22 @@ with tab3:
         st.plotly_chart(fig7, use_container_width=True)
 
     with col2:
-        uren_sim = sorted(df['uur'].unique())
-        vol_lbl  = m.get('volume_label_uur', {})
+        # Gebruik aankomsten (incl. gebalkt) ipv afgehandeld volume
+        # Zo is duidelijk zichtbaar dat buiten tijdsloten minder patienten toekomen
+        uren_sim    = sorted(set(m.get('aankomst_per_uur', {}).keys()))
+        aank_lbl    = m.get('aankomst_label_uur', {})
         fig8 = go.Figure()
         for lbl, kleur in kleuren.items():
-            vals = [vol_lbl.get(lbl, {}).get(u, 0) for u in uren_sim]
+            vals = [aank_lbl.get(lbl, {}).get(u, 0) for u in uren_sim]
             if sum(vals) > 0:
                 fig8.add_trace(go.Bar(
                     x=[f"{u}u" for u in uren_sim], y=vals,
                     name=lbl, marker_color=kleur, opacity=.85,
                 ))
         fig8.update_layout(
-            barmode='stack', title='Gesimuleerd volume per aankomstuur per type',
+            barmode='stack', title='Aankomsten per uur per type (incl. gebalkt)',
             xaxis=dict(title='Aankomstuur', **G),
-            yaxis=dict(title='Aantal geholpen patiënten', **G),
+            yaxis=dict(title='Aantal toekomende patiënten', **G),
             height=300, legend=dict(orientation='h', y=-.28), **T,
         )
         st.plotly_chart(fig8, use_container_width=True)
@@ -492,7 +492,7 @@ with tab3:
     if actieve_slots:
         st.markdown('<div class="hdr">Actieve tijdsloten</div>', unsafe_allow_html=True)
         slot_labels = [uur_label(s) for s in sorted(actieve_slots)]
-        st.write("Patiënten zonder afspraak worden doorverwezen naar: " +
+        st.write("Patiënten zonder consultatie worden doorverwezen naar: " +
                  ", ".join(slot_labels))
     else:
         st.info("Geen tijdsloten actief. Selecteer slots in de sidebar om het effect te simuleren.")
@@ -572,34 +572,34 @@ with tab4:
         )
         st.plotly_chart(fig10, use_container_width=True)
 
-        # --- NIEUWE GRAFIEK: Totaal geholpen volume per uur ---
-        st.markdown('<div class="hdr">Totaal geholpen patiënten per uur (Alle types)</div>', unsafe_allow_html=True)
+        # Aankomsten per uur (de correcte metric voor werkdruk-spreiding)
+        # Afgehandeld volume maskeert het effect: minder aankomsten in piekuren
+        # maar zalen vullen die capaciteit op met wachtrij -> curves lijken gelijk.
+        # Aankomsten tonen WEL het echte verschil in instroom.
+        st.markdown('<div class="hdr">Aankomsten per uur per scenario (alle patiënten, incl. gebalkt)</div>', unsafe_allow_html=True)
+        st.caption("Dit toont de werkelijke instroom per uur — buiten tijdsloten minder aankomsten, in tijdsloten meer. Dit is het directe effect van de tijdslotstrategie.")
         fig11 = go.Figure()
-        
+
         for i, (naam, s) in enumerate(st.session_state.scenarios.items()):
             if 'fout' in s: continue
-            
-            # Haal het totale volume per uur op uit de simulatie metrics
-            vol_dict = s.get('volume_per_uur', {})
-            uren_beschikbaar = sorted(vol_dict.keys())
-            
+            aank_dict = s.get('aankomst_per_uur', {})
+            uren_beschikbaar = sorted(aank_dict.keys())
             fig11.add_trace(go.Scatter(
                 x=[f"{u}u" for u in uren_beschikbaar],
-                y=[vol_dict[u] for u in uren_beschikbaar],
-                name=f"{naam}",
+                y=[aank_dict[u] for u in uren_beschikbaar],
+                name=naam,
                 mode='lines+markers',
                 line=dict(color=sc_kl[i % len(sc_kl)], width=2),
-                marker=dict(size=6)
+                marker=dict(size=6),
             ))
-            
+
         fig11.update_layout(
-            title='Totale ziekenhuiswerkdruk per scenario (afvlakking van de piek)',
-            xaxis=dict(title='Aankomstuur van de patiënt', **G),
-            yaxis=dict(title='Totaal geholpen patiënten', **G),
+            title='Totale aankomsten per uur per scenario',
+            xaxis=dict(title='Aankomstuur', **G),
+            yaxis=dict(title='Toekomende patiënten (incl. gebalkt)', **G),
             height=280, legend=dict(orientation='h', y=-.3), **T,
         )
         st.plotly_chart(fig11, use_container_width=True)
-        # --------------------------------------------------------
 
         st.dataframe(
             comp_df.style.highlight_min(
