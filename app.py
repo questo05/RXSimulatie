@@ -73,8 +73,8 @@ with st.sidebar:
     alle_zalen    = ['G5','G15','G3','G4','G2','G1']
     actieve_zalen = st.multiselect("Actieve RX-zalen", alle_zalen, DEFAULT_ZALEN,
                                    help="G5=thorax · G15=full-length · G2/G3/G4=gemengd · G1=backup")
-    n_technici    = st.slider("Radiotechnici", 1, 12, 9,
-                              help="Aantal beschikbare technici (1 per onderzoek tegelijk)")
+    n_technici    = st.slider("Verpleegkundigen", 1, 12, 9,
+                              help="Aantal beschikbare verpleegkundigen (1 per onderzoek tegelijk)")
     wk_cap        = st.slider("Wachtkamercapaciteit", 5, 80, DEFAULT_WACHTKAMER,
                               help="Patiënten die toekomen als de wachtkamer vol is vertrekken")
 
